@@ -1,0 +1,60 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cert-manager
+  namespace: flux-system
+spec:
+  interval: 1m
+  wait: true
+  path: "components/k8s/manifests/deployments/sck-sit-dev/main/pipeline/0-certmanager"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: configuration
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: cert-manager
+  interval: 1m
+  wait: true
+  path: "components/k8s/manifests/deployments/sck-sit-dev/main/pipeline/1-configuration"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: certificates
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: configuration # needs the ClusterIssuer from stage 1
+  interval: 1m
+  wait: false # do NOT block on ACME issuance to avoid reconciliation timeouts
+  path: "components/k8s/manifests/deployments/sck-sit-dev/main/pipeline/1b-certificates"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: charts
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: configuration
+  interval: 1m
+  path: "components/k8s/manifests/deployments/sck-sit-dev/main/pipeline/2-charts"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

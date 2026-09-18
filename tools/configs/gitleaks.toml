@@ -1,0 +1,36 @@
+# Additional gitleaks detection rules for sops.
+
+# Extends default config.
+[extend]
+  useDefault = true
+
+[[allowlists]]
+  paths = [
+    '''components/secrets/config\.toml''',
+    '''components/secrets/_ytt_lib/config\.toml''',
+    '''tests/keys/*''',
+
+  ]
+
+[[rules]]
+  description = "Sensitive key with a plaintext (non-ENC[]) value; should be SOPS-encrypted"
+  id = "sops-plaintext-secret"
+  keywords = [
+    "auth",
+    "client",
+    "password",
+    "passwd",
+    "token",
+    "secret",
+    "api",
+    "key",
+    "access",
+    "private",
+  ]
+  path = '''\.sops(\.|$)'''
+  regex = '''(?i)([\w-]*(client[_-]?id|client[_-]?secret|password|passwd|token|secret|api[_-]?key|access[_-]?key|private[_-]?key))\s*:\s*(\S.*)'''
+  secretGroup = 3
+
+  [rules.allowlist]
+    regexTarget = "line"
+    regexes     = ['''ENC\[''']

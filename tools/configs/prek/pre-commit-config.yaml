@@ -1,0 +1,28 @@
+repos:
+  - repo: builtin
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: treefmt
+        name: treefmt
+        language: system
+        entry: just format
+      # After treefmt: catches formatter-induced parse breakage (nufmt has
+      # stripped semantically relevant parentheses before).
+      - id: nu-check
+        name: nu-check
+        language: system
+        entry: just check
+        files: '\.nu$'
+        pass_filenames: false
+      - id: gitleaks
+        name: Scan secrets
+        entry: just check-leaks --pre-commit --staged
+        language: system
+        pass_filenames: false

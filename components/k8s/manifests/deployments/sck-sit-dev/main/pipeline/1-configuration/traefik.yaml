@@ -1,0 +1,15 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  values:
+    gateway:
+      listeners:
+        websecure:
+          # See this cluster's certificates.yaml
+          certificateRefs:
+            - name: sck-sit-dev-tls
+              kind: Secret

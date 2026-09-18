@@ -1,0 +1,42 @@
+set positional-arguments
+set fallback
+set shell := ["bash", "-cue"]
+
+host_name := "vm-gitlab-runner"
+
+mod vm "vm.just"
+
+# Deploy Commands =============================================================
+default:
+    just --list --unsorted
+
+# Build the VM job containers.
+build-image type="alpine" withNixStore="false":
+    #!/usr/bin/env bash
+    set -eu -o pipefail
+
+    target="imageFile"
+    if [ "{{withNixStore}}" = "true" ]; then
+        target="imageFile.buildFull"
+    fi
+
+    nix build -L \
+        ".#nixosConfigurations.vm-gitlab-runner.config.virtualisation.oci-containers.containers.{{type}}-container.${target}"
+
+    podman load < ./result
+    dive "podman://local/{{type}}:latest"
+
+# Update root files in `/root/...`
+update-root-files:
+    #!/usr/bin/env bash
+    function cleanup() {
+        podman container kill temp-buildah &>/dev/null || true
+        podman container rm temp-buildah &>/dev/null || true
+    }
+    trap cleanup EXIT
+    cleanup
+    podman run -d --name temp-buildah quay.io/buildah/stable:latest
+    echo "Writing files to nixos/files/root/etc ..."
+    podman cp temp-buildah:/etc/containers "nixos/files/common-root/etc/"
+    podman cp temp-buildah:/run/secrets "nixos/files/common-root/run/"
+    find "nixos/files/common-root" -type d -empty -delete

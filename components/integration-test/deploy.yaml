@@ -1,0 +1,5 @@
+type: vm
+env:
+  - test/.sops.env
+ip:
+  public: 192.0.2.1

@@ -1,0 +1,4 @@
+type: openstack-cli
+# Source files in /components/secrets/
+env:
+  - openstack-switch.ch/.sops.env

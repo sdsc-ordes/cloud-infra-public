@@ -1,0 +1,22 @@
+# This multi-SAN certificate is needed because of the following:
+# * We have a wildcard DNS record for the cluster (*.sck-sit-dev.dscompute.ch).
+# * Certificates for wildcard DNS records can only be issued via DNS01 challenge.
+# * DNS01 challenge requires an API Token to the registrar managing our domain.
+# * Our registrar is infomaniak, which does not have built-in support and needs more config.
+#   - see: https://yewolf.fr/blog/building-my-infra-on-infomaniak-kubernetes-managed/#tls-cert-manager-and-infomaniak-dns
+#
+# Therefore, we need to use HTTP01 challenges for a fixed list of domains, which we maintain here.
+# If this becomes a pain, we need to request the DNS API token from support@datascience.ch and do above setup.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sck-sit-dev-tls
+  namespace: traefik
+spec:
+  secretName: sck-sit-dev-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - whoami.sck-sit-dev.dscompute.ch
+    # append each new app host here

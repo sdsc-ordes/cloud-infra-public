@@ -1,0 +1,45 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: hackagon
+  namespace: flux-system
+spec:
+  ref:
+    semver: "0.3.0"
+---
+# Per-cluster, non-secret overrides.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hackagon
+  namespace: hackagon
+spec:
+  values:
+    baseDomain: sck-sit-prod.dscompute.ch
+
+    frontend:
+      config:
+        oidc:
+          issuer: "https://auth-hackagon.{baseDomain}/realms/hackagon"
+      ingress:
+        hosts:
+          - host: "hackagon.{baseDomain}"
+            paths:
+              - path: /
+                pathType: Prefix
+        tls:
+          - secretName: "hackagon-frontend-tls"
+            hosts:
+              - "hackagon.{baseDomain}"
+              - "auth-hackagon.{baseDomain}"
+
+    backend:
+      config:
+        oidc:
+          jwksurl: "https://auth-hackagon.{baseDomain}/realms/hackagon/protocol/openid-connect/certs"
+          issuerurl: "https://auth-hackagon.{baseDomain}/realms/hackagon"
+
+    keycloak:
+      hostname:
+        hostname: "https://auth-hackagon.sck-sit-prod.dscompute.ch"

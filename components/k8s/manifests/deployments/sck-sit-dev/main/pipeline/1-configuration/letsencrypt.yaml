@@ -1,0 +1,40 @@
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: infrastructure-team@datascience.ch
+    privateKeySecretRef:
+      name: letsencrypt-production-account-key
+    solvers:
+      # Add if we get the infomaniak DNS token to manage our
+      # wildcard domain. See https://yewolf.fr/blog/building-my-infra-on-infomaniak-kubernetes-managed/#tls-cert-manager-and-infomaniak-dns
+      # - dns01:
+      #     webhook:
+      #       groupName: acme.infomaniak.com
+      #       solverName: infomaniak
+      #       config:
+      #         apiTokenSecretRef: { name: infomaniak-api-token, key: token }
+      #   selector:
+      #     dnsZones: ["sck-sit-dev.dscompute.ch"]
+      - http01:
+          ingress:
+            ingressClassName: traefik
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: infrastructure-team@datascience.ch
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

@@ -1,0 +1,40 @@
+.direnv
+.output
+
+# Agents
+AGENTS.md
+.agents/
+CLAUDE.md
+.claude/
+
+# All .env files.
+*.env
+!.env.tmpl
+.env.yaml
+
+# All SOPS files.
+*.agekey*
+*.dec.*
+!*.sops.*
+# The test-only key is committed on purpose (see tests/e2e.nu).
+!tests/keys/test.agekey
+
+# Terraform crash log files
+crash.log
+crash.*.log
+# Local .terraform directories
+.terraform
+# .tfstate files
+*.tfstate
+*.tfstate.*
+# *.tfvars
+*.tfvars.json
+
+# Nix
+result
+
+# Symlinks
+.pre-commit-config.yaml
+.prettierrc.yaml
+.sops.yaml
+.taplo.toml
