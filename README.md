@@ -5,6 +5,8 @@
 Shared, declarative cloud infrastructure for SDSC.
 
 This repository contains reusable, project-agnostic infrastructure components developed collaboratively across the SDSC Infrastructure and Engineering teams, with operational responsibility held by the SDSC Infrastructure Team.
+ 
+> **Repository status:** This repository is a public reference mirror. Active development, reviews, and operational changes are managed in the private working repository.
 
 ## What this repo contains
 
@@ -40,12 +42,11 @@ To learn how to use this repository, you may want to read the following:
 
 The repository follows a few simple principles:
 
-- Declarative by default — infrastructure changes should be reproducible and version-controlled.
-- Reusable over project-specific — common capabilities should be implemented once and shared.
-- Clear ownership — operational responsibilities and interfaces should be explicit.
-- Open collaboration — infrastructure patterns can be co-developed across teams.
-- Self-service where practical — teams should be able to consume documented infrastructure capabilities without unnecessary operational dependencies.
-- Secure by design — access and infrastructure changes should follow documented security practices.
-
-
+- **Declarative by default** — infrastructure changes should be reproducible and version-controlled.
+- **Reusable over project-specific** — common capabilities should be implemented once and shared.
+- **Clear ownership** — operational responsibilities and interfaces should be explicit.
+- **Open collaboration** — infrastructure patterns can be co-developed across teams.
+- **Self-service where practical** — teams should be able to consume documented infrastructure capabilities without unnecessary handovers.
+- **Secure by design** — access and infrastructure changes should follow documented security practices.
+ 
 Copyright (c) 2026 Swiss Data Science Center (SDSC)
