@@ -1,0 +1,91 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: niks3-basicauth-ratelimit
+  namespace: niks3
+spec:
+  rateLimit:
+    average: 5000
+    period: 1s
+    burst: 10000
+    sourceCriterion:
+      ipStrategy:
+        ipv6Subnet: 64
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: niks3-basicauth-protected
+  namespace: niks3
+spec:
+  chain:
+    middlewares:
+      - name: niks3-basicauth-ratelimit
+      - name: niks3-basicauth
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: niks3-basicauth
+  namespace: niks3
+spec:
+  basicAuth:
+    secret: niks3-basicauth-users
+    removeHeader: true
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: niks3
+  namespace: niks3
+spec:
+  parentRefs:
+    - name: traefik-gateway
+      namespace: traefik
+      sectionName: websecure
+  hostnames:
+    - nix-cache.sck-sit-dev.dscompute.ch
+  rules:
+    # 1. Unauthenticated-in-niks3 endpoints:
+    # gate them at the edge. Exact matches outrank the /api/ prefix below.
+    - matches:
+        - path: { type: Exact, value: /metrics }
+        - path: { type: Exact, value: /api/cache-stats }
+        - path: { type: Exact, value: /api/cache-config }
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            {
+              group: traefik.io,
+              kind: Middleware,
+              name: niks3-basicauth-protected,
+            }
+      backendRefs:
+        - { name: niks3, port: 80 }
+
+    # 2. The API.
+    # niks3 authenticates these itself with the Bearer token.
+    # NO basicAuth here.
+    # It would collide with the Authorization header.
+    - matches:
+        - path: { type: PathPrefix, value: /api/ }
+      backendRefs:
+        - { name: niks3, port: 80 }
+
+    # 3. Reads + Landing page.
+    # - Nix speaks Basic via netrc.
+    # - niks3 speaks Bearer.
+    #   Traefik does the authenticating, niks3 sees anonymous and serves.
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            {
+              group: traefik.io,
+              kind: Middleware,
+              name: niks3-basicauth-protected,
+            }
+      backendRefs:
+        - { name: niks3, port: 80 }

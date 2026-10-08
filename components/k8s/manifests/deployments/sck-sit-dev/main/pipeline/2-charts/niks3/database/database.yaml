@@ -1,0 +1,12 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: niks3
+  namespace: niks3
+spec:
+  name: niks3
+  owner: niks3
+  cluster:
+    name: niks3-pg
+  databaseReclaimPolicy: delete

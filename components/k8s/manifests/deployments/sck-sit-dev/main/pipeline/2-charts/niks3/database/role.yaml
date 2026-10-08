@@ -1,0 +1,16 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: niks3
+  namespace: niks3
+spec:
+  cluster:
+    name: niks3-pg
+
+  name: niks3
+  comment: niks3
+  login: true
+  passwordSecret:
+    name: niks3-pg-role-password
+  databaseRoleReclaimPolicy: retain

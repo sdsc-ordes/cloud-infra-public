@@ -1,0 +1,56 @@
+---
+#! This is the postgres cluster setup.
+#! The external DNS name for the read-write postgres instance is accessible under:
+#! - `niks3-pg-rw.niks3.svc.cluster.local` for all namespaces.
+#! - `niks3-pg-rw` for this namespace.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: niks3-pg
+  namespace: niks3
+spec:
+  backup: {}
+  description: General DB niks3 cluster.
+
+  instances: 2
+
+  monitoring:
+    enablePodMonitor: true
+
+  # plugins:
+  #   - isWALArchiver: true
+  #     name: barman-cloud.cloudnative-pg.io
+  #     parameters:
+  #       barmanObjectName: niks3s-postgres-cluster-backup-barmanobject
+
+  postgresql:
+    parameters:
+      shared_buffers: 256MB
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+  storage:
+    pvcTemplate:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      # storageClassName: switch-cloud-standard-delete
+      volumeMode: Filesystem
+
+  walStorage:
+    pvcTemplate:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      # storageClassName: switch-cloud-standard-delete
+      volumeMode: Filesystem

@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../../../common/apps/niks3
+  - database
+  - ./niks3-route.yaml
+  - ./cache-check.yaml
+patches:
+  - path: niks3.yaml

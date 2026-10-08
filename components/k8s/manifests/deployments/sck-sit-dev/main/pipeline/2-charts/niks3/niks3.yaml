@@ -1,0 +1,25 @@
+---
+# Per-cluster, non-secret overrides.
+#
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: niks3
+  namespace: niks3
+spec:
+  values:
+    cacheURL: https://nix-cache.sck-sit-dev.dscompute.ch
+
+    # Cache landing page at `/index.html` and all other stuff
+    # gets redirected to presigned URLs on S3.
+    # WARNING: This makes the cache PUBLIC.
+    #          but we hacked basicauth infront in the niks3-route.yaml.
+    readProxy:
+      enabled: true
+      redirectTTL: 15m
+
+    s3:
+      bucket: k8s-sit-dev-nix-cache
+      endpoint: zhw-a.s3.cloud.switch.ch
+      region: ch
+      bucketLookup: path

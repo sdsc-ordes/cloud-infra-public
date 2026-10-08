@@ -1,0 +1,15 @@
+# multi-SAN certificate (see comment at /../../../sck-sit-dev/main/pipeline/1b-certificates/certificates.yaml)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sck-sit-prod-tls
+  namespace: traefik
+spec:
+  secretName: sck-sit-prod-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - hackagon.sck-sit-prod.dscompute.ch
+    - auth-hackagon.sck-sit-prod.dscompute.ch
+    # append each new app host here

@@ -1,0 +1,131 @@
+---
+#! Smoke test for the niks3 binary cache.
+#!
+#! Builds a trivial derivation, pushes it to the cache and pins it, which
+#! exercises the whole path: Traefik -> niks3 -> Postgres -> S3.
+#!
+#! Notes:
+#! - `force: enabled` lets Flux delete and recreate the Job when this spec
+#!   changes. A Job's `spec` is immutable, so a plain apply would fail.
+#! - Consequently this re-runs on *change*, not on every reconcile.
+#! - Do NOT set `ttlSecondsAfterFinished`: the Job would delete itself, Flux
+#!   would re-apply it on the next reconcile and the test would loop forever.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: niks3-cache-check
+  namespace: niks3
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 2
+  #! Bound a hung run; a cold `nix build` of the client takes a few minutes.
+  activeDeadlineSeconds: 1800
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: niks3-cache-check
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: cache-check
+          image: docker.io/nixpkgs/nix-flakes@sha256:5113a4d10dda16c30bf2e517f29a56890233d2660115003155aab1f7d279d8db
+          workingDir: /tmp
+
+          env:
+            #! `import <nixpkgs>` under `--impure` resolves through NIX_PATH.
+            #! This fetches a nixpkgs tarball at runtime.
+            - name: NIX_PATH
+              value: "nixpkgs=channel:nixos-unstable"
+
+          volumeMounts:
+            - name: auth-token
+              mountPath: /etc/niks3
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+
+          command:
+            - nix
+            - run
+            - nixpkgs#bash
+            - --
+            - -c
+            - |
+              set -euo pipefail
+
+              SERVER_URL="http://niks3.niks3.svc.cluster.local"
+              TOKEN_PATH="/etc/niks3/token"
+              PIN_NAME="check-that-cache-works"
+
+              # Pinned to the same commit the GitRepository deploys, so the
+              # client and the server can never drift apart.
+              NIKS3_REV="43a0e5fb0723c0a0f11137bc29ad014bc3b648ff"
+
+              echo "==> Building the niks3 client (rev ${NIKS3_REV})."
+              # Built once and reused; `nix run` would re-evaluate per call.
+              NIKS3="$(nix build --no-link --print-out-paths \
+                "github:Mic92/niks3/${NIKS3_REV}#niks3")/bin/niks3"
+
+              echo "==> Waiting for niks3 to serve the API."
+              # Doubles as an auth check: a 401 keeps us waiting rather than
+              # failing later in the middle of a push.
+              ready=false
+              for attempt in $(seq 1 60); do
+                if "$NIKS3" pins list \
+                     --server-url "$SERVER_URL" \
+                     --auth-token-path "$TOKEN_PATH" >/dev/null 2>&1; then
+                  ready=true
+                  break
+                fi
+                echo "    attempt ${attempt}/60: not ready, retrying in 5s."
+                sleep 5
+              done
+
+              if [ "$ready" != "true" ]; then
+                echo "ERROR: niks3 unreachable at ${SERVER_URL}." >&2
+                exit 1
+              fi
+
+              echo "==> Building the test derivation."
+              echo "your cache works" > check-that-cache-works.md
+              OUT=$(nix store add check-that-cache-works.md)
+
+              "$NIKS3" pins delete \
+                --auth-token-path "$TOKEN_PATH" \
+                --server-url "$SERVER_URL" \
+                "$PIN_NAME" || { echo "Could not delete the pin, skip." >&2; }
+
+              echo "==> Pushing to the cache."
+              "$NIKS3" push \
+                --auth-token-path "$TOKEN_PATH" \
+                --server-url "$SERVER_URL" \
+                "$OUT"
+
+              echo "==> Re-creating the pin."
+              "$NIKS3" pins create \
+                --auth-token-path "$TOKEN_PATH" \
+                --server-url "$SERVER_URL" \
+                "$PIN_NAME" "$OUT"
+
+              echo "==> Cache check passed."
+
+      volumes:
+        - name: auth-token
+          secret:
+            secretName: niks3-api-token
+            items:
+              - key: token
+                path: token
+        - name: tmp
+          emptyDir: {}

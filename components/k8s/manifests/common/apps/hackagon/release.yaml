@@ -1,0 +1,169 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: hackagon
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: oci://ghcr.io/swissdatasciencecenter/hackagon/charts/hackagon
+  ref:
+    semver: ">=0.0.0"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hackagon
+  namespace: hackagon
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: hackagon
+    namespace: flux-system
+  releaseName: hackagon
+  interval: 5m
+  timeout: 40m
+  install:
+    disableWait: true
+    remediation:
+      retries: 3
+  # WARNING: inline values always win -> don't put placeholders for cluster-specific values.
+  values:
+    # ============================================================
+    # Frontend
+    # ============================================================
+    frontend:
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+      # -- Frontend config.yaml content (non-sensitive settings)
+      config:
+        log:
+          forceDevLog: false
+        backend:
+          hostname: hackagon-backend
+          port: 3000
+        cookies:
+          useSecure: true
+        oidc:
+          clientId: hackagon-frontend
+          audience: hackagon-backend
+
+      ingress:
+        enabled: true
+        ingressClass: "traefik"
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-production
+
+          # The chart defaults this map to nginx.ingress.kubernetes.io/*, but
+          # we use Traefik's native Ingress provider -> replace annotations.
+          nginx.ingress.kubernetes.io/client-header-buffer-size: null
+          nginx.ingress.kubernetes.io/large-client-header-buffers: null
+          nginx.ingress.kubernetes.io/proxy-buffer-size: null
+          nginx.ingress.kubernetes.io/proxy-buffers: null
+          nginx.ingress.kubernetes.io/proxy_busy_buffers_size: null
+          nginx.ingress.kubernetes.io/ssl-redirect: null
+
+    # ============================================================
+    # Backend
+    # ============================================================
+    backend:
+      replicaCount: 1
+      annotations: {}
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 1000m
+          memory: 512Mi
+
+      # -- Backend config.yaml content
+      config:
+        server:
+          port: "3000"
+          adminemail: "admin@datascience.ch"
+        database:
+          driver: postgres
+          host: "" # Auto-generated from release name in template
+          port: 5432
+          dbname: hackagon
+          user: hackagon
+        oidc:
+          algorithm: RS256
+        logging:
+          level: info
+
+      service:
+        type: ClusterIP
+        port: 3000
+
+    # ============================================================
+    # Keycloak (helmforge)
+    # ============================================================
+    keycloak:
+      enabled: true
+      replicaCount: 1
+
+      # -- Production mode requires hostname and database
+      mode: production
+
+      # -- External database (reuse the same postgres instance)
+      database:
+        external:
+          vendor: postgres
+          host: "hackagon-postgresql" # <release>-postgresql
+          port: 5432
+          database: keycloak
+          user: keycloak
+
+      # -- Realm import from the ConfigMap the chart generates from `realmJson`
+      realmImport:
+        enabled: true
+        existingConfigMap: hackagon-realm
+
+      # -- Persistence (for Keycloak data, not DB)
+      persistence:
+        enabled: true
+        size: 10Gi
+
+    keycloakIngress:
+      enabled: true
+      ingressClass: "traefik"
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-production
+
+    # ============================================================
+    # PostgreSQL (bitnami) — two databases, two users
+    # ============================================================
+    postgresql:
+      enabled: true
+      auth:
+        username: postgres
+        database: postgres
+
+      primary:
+        persistence:
+          enabled: true
+          size: 10Gi
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        initdb:
+          scriptsConfigMap: hackagon-keycloak-init
+  valuesFrom:
+    - kind: Secret
+      name: hackagon-secret-values
+      valuesKey: values.yaml
